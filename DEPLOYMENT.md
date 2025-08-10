@@ -7,7 +7,7 @@ This guide provides instructions for deploying the URL shortener application to 
 - Node.js and npm installed
 - Git installed
 - MongoDB Atlas account (for cloud database)
-- Account on your chosen cloud platform (Heroku, Vercel, Netlify, etc.)
+- Account on your chosen cloud platform (Railway, Heroku, Vercel, Netlify, etc.)
 
 ## MongoDB Atlas Setup
 
@@ -98,6 +98,83 @@ This guide provides instructions for deploying the URL shortener application to 
    vercel login
    vercel
    ```
+
+## Option 3: Deploying to Railway
+
+Railway is a modern cloud platform that makes deploying applications simple. Here's how to deploy your URL shortener to Railway:
+
+### Prerequisites
+
+1. Create a Railway account at [railway.app](https://railway.app)
+2. Install the Railway CLI (optional):
+   ```
+   npm install -g @railway/cli
+   ```
+
+### Method 1: Deploy using GitHub Integration (Recommended)
+
+1. Push your code to GitHub (which we've already done)
+2. Login to Railway Dashboard [https://railway.app/dashboard](https://railway.app/dashboard)
+3. Click "New Project" → "Deploy from GitHub repo"
+4. Select your URL shortener repository
+5. Railway will automatically detect your project structure
+6. Configure environment variables:
+   - MONGODB_URI="your-mongodb-atlas-connection-string"
+   - NODE_ENV="production" 
+   - PORT=5000 (or your preferred port)
+   - BASE_URL="https://your-project-name.up.railway.app"
+
+7. For the frontend, set:
+   - REACT_APP_API_URL="https://your-project-name.up.railway.app/api"
+
+8. Railway will automatically build and deploy your application
+
+### Method 2: Deploy using Railway CLI
+
+1. Login to Railway through the CLI:
+   ```
+   railway login
+   ```
+2. Navigate to your project directory and initialize Railway:
+   ```
+   cd url-shortener
+   railway init
+   ```
+3. Link to an existing project or create a new one:
+   ```
+   railway link
+   ```
+   OR
+   ```
+   railway project create
+   ```
+4. Set up environment variables:
+   ```
+   railway variables set MONGODB_URI="your-mongodb-atlas-connection-string"
+   railway variables set NODE_ENV="production"
+   railway variables set PORT=5000
+   railway variables set BASE_URL="https://your-project-name.up.railway.app"
+   railway variables set REACT_APP_API_URL="https://your-project-name.up.railway.app/api"
+   ```
+5. Deploy your application:
+   ```
+   railway up
+   ```
+
+### Method 3: Deploy Backend and Frontend Separately on Railway
+
+1. Create two separate projects in Railway: one for backend and one for frontend
+2. For the backend:
+   - Create a new project and connect to your GitHub repository
+   - Set the root directory to `/backend`
+   - Configure environment variables as mentioned above
+   
+3. For the frontend:
+   - Create a new project and connect to your GitHub repository
+   - Set the root directory to `/frontend`
+   - Set REACT_APP_API_URL to your backend service URL
+   
+4. Railway will automatically build and deploy both services
 5. Follow the prompts to complete the deployment
 
 ### Frontend Deployment to Netlify
