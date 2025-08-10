@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, Card } from 'react-bootstrap';
 import UrlList from '../components/UrlList';
 import axios from 'axios';
+import config from '../config';
 
 // Admin page component with dashboard
 function Admin() {
@@ -17,7 +18,7 @@ function Admin() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await axios.get('/api/stats');
+        const response = await axios.get(`${config.API_BASE_URL}/api/stats`);
         setStats(response.data);
         
         setLoading(false);
@@ -85,7 +86,7 @@ function Admin() {
         setLoading(true);
         const fetchStats = async () => {
           try {
-            const response = await axios.get('/api/stats');
+            const response = await axios.get(`${config.API_BASE_URL}/api/stats`);
             
             setStats(response.data);
             

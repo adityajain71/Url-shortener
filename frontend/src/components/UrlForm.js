@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Button, Alert, Spinner } from 'react-bootstrap';
 import axios from 'axios';
+import config from '../config';
 
 // Component for URL submission form
 function UrlForm({ onShortenSuccess }) {
@@ -12,6 +13,7 @@ function UrlForm({ onShortenSuccess }) {
 
   // Basic URL validation using regex
   const validateUrl = (url) => {
+    // eslint-disable-next-line no-useless-escape
     const pattern = /^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$/i;
     return pattern.test(url);
   };
@@ -55,7 +57,7 @@ function UrlForm({ onShortenSuccess }) {
       }
       
       // Make API request to shorten URL
-      const response = await axios.post('/api/shorten', {
+      const response = await axios.post(`${config.API_BASE_URL}/api/shorten`, {
         originalUrl: urlToShorten
       });
       
@@ -77,17 +79,17 @@ function UrlForm({ onShortenSuccess }) {
       <h2>Shorten Your URL</h2>
       <p>Enter a long URL to create a short, easy-to-share link.</p>
       
-      {error && <Alert variant="danger">{error}</Alert>}
+      {error && <Alert variant="danger" className="p-2 mb-3">{error}</Alert>}
       
-      <Form onSubmit={handleSubmit}>
+      <Form onSubmit={handleSubmit} className="w-100">
         <Form.Group className="mb-3" controlId="formUrl">
           <Form.Control
             type="text"
-            placeholder="Enter URL (e.g., https://example.com/long-url)"
+            placeholder="Enter your URL here"
             value={url}
             onChange={handleChange}
             isInvalid={!isValidUrl && url.length > 0}
-            className="rounded-0"
+            className="rounded-0 text-center"
           />
           {!isValidUrl && url.length > 0 && (
             <Form.Control.Feedback type="invalid">

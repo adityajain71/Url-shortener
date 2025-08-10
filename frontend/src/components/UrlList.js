@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Form, InputGroup, Spinner, Alert, Card, Modal } from 'react-bootstrap';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import axios from 'axios';
+import config from '../config';
 
 // Component to display all URLs in admin view
 function UrlList({ refreshStats }) {
@@ -30,7 +31,7 @@ function UrlList({ refreshStats }) {
   const fetchUrls = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/urls');
+      const response = await fetch(`${config.API_BASE_URL}/api/urls`);
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
@@ -69,7 +70,7 @@ function UrlList({ refreshStats }) {
     setActionError('');
     
     try {
-      const response = await axios.put(`/api/url/${currentUrl.id}`, {
+      const response = await axios.put(`${config.API_BASE_URL}/api/url/${currentUrl.id}`, {
         originalUrl: editUrl
       });
       
@@ -107,7 +108,7 @@ function UrlList({ refreshStats }) {
     setActionError('');
     
     try {
-      const response = await axios.delete(`/api/url/${currentUrl.id}`);
+      const response = await axios.delete(`${config.API_BASE_URL}/api/url/${currentUrl.id}`);
       
       if (response.data.success) {
         // Remove the deleted URL from the list

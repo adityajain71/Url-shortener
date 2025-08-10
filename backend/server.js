@@ -14,7 +14,16 @@ const app = express();
 
 // Middleware
 app.use(express.json()); // Parse JSON request body
-app.use(cors()); // Enable CORS for all routes
+
+// Configure CORS based on environment
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL || '*' // Allow any frontend in production unless specified
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+  optionsSuccessStatus: 200,
+  credentials: true
+};
+app.use(cors(corsOptions)); // Enable CORS with configuration
 
 // Connect to MongoDB using the connection module
 console.log('Initializing MongoDB connection...');

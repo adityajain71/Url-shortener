@@ -203,6 +203,44 @@ Railway is a modern cloud platform that makes deploying applications simple. Her
    netlify deploy --prod
    ```
 
+## Deployment to Render.com
+
+Render is an excellent cloud platform for hosting both your frontend and backend.
+
+### Backend Deployment on Render
+
+1. Sign up/log in to [Render.com](https://render.com/)
+2. Click "New +" and select "Web Service"
+3. Connect your GitHub repository
+4. Configure:
+   - Name: url-shortener-backend
+   - Environment: Node
+   - Build Command: `cd backend && npm install`
+   - Start Command: `cd backend && npm start`
+   - Add environment variable: 
+     - Key: MONGODB_URI
+     - Value: `mongodb+srv://adityapradipjain2005:_adi.tya7@cluster0.4ry2tb8.mongodb.net/url-shortener?retryWrites=true&w=majority&appName=Cluster0`
+     - Key: NODE_ENV
+     - Value: production
+
+### Frontend Deployment on Render
+
+1. Click "New +" and select "Static Site"
+2. Connect your GitHub repository
+3. Configure:
+   - Name: url-shortener-frontend
+   - Build Command: `cd frontend && npm install && npm run build`
+   - Publish Directory: `frontend/build`
+   - Add environment variable:
+     - Key: REACT_APP_API_BASE_URL
+     - Value: [Your Backend URL from Render] (e.g., https://url-shortener-backend.onrender.com)
+
+### Post-Deployment Steps for Render
+
+1. After your backend is deployed, copy its URL (e.g., https://url-shortener-backend.onrender.com)
+2. Update the REACT_APP_API_BASE_URL environment variable in your frontend service
+3. Trigger a manual redeploy of your frontend
+
 ## Post-Deployment Verification
 
 After deploying your application, verify:
@@ -214,7 +252,10 @@ After deploying your application, verify:
 
 ## Troubleshooting
 
-- **Application crashes on startup**: Check the logs with `heroku logs --tail` to identify the issue
+- **Application crashes on startup**: For Render, check the logs in the service dashboard
 - **Database connection issues**: Verify your MongoDB connection string and network access settings
 - **CORS errors**: Make sure your backend allows requests from your frontend domain
 - **Environment variables missing**: Double-check that all required environment variables are set in your cloud platform
+- **Render specific issues**: 
+  - If your backend doesn't connect to MongoDB, ensure the MongoDB Atlas IP whitelist includes 0.0.0.0/0 temporarily
+  - If your frontend can't reach the backend, verify the REACT_APP_API_BASE_URL is correct and the backend service is running
