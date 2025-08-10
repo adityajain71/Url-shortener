@@ -3,3 +3,70 @@
   display: flex;
   flex-direction: column;
 }
+
+.app-container {
+  padding: 2rem;
+  flex: 1;
+}
+
+/* Make text in cards and tables truncate with ellipsis */
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Stats card styling */
+.stats-card {
+  text-align: center;
+  border-radius: 0.5rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: transform 0.3s;
+}
+
+.stats-card:hover {
+  transform: translateY(-5px);
+}
+
+.stats-number {
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 1rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  h3 {
+    font-size: 1.3rem;
+  }
+  
+  .url-form {
+    margin-bottom: 1.5rem;
+  }
+  
+  .stats-number {
+    font-size: 1.5rem;
+  }
+  
+  .stats-label {
+    font-size: 0.9rem;
+  }
+  
+  /* Adjust table display for mobile */
+  .table-responsive {
+    font-size: 0.9rem;
+  }
+  
+  /* Make buttons in mobile more touch-friendly */
+  .btn {
+    padding: 0.5rem 1rem;
+  }
+}

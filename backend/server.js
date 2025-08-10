@@ -16,11 +16,17 @@ app.use(express.json()); // Parse JSON request body
 app.use(cors()); // Enable CORS for all routes
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
+const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://localhost:27017/url-shortener';
+console.log(`Attempting to connect to MongoDB with URI: ${mongoURI.replace(/\/\/.*@/, '//***:***@')}`); // Log redacted URI for debugging
+
+mongoose.connect(mongoURI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => {
     console.error('MongoDB connection error:', err);
-    process.exit(1);
+    // Don't exit immediately in production, as Railway might restart the container
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   });
 
 // API routes

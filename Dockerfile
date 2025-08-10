@@ -18,7 +18,8 @@ RUN npm run install-all
 # Copy all other files
 COPY . .
 
-# Build frontend
+# Build frontend with relative API URL
+ENV REACT_APP_API_URL=/api
 RUN npm run build
 
 # Expose the port the app runs on

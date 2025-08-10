@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Button, InputGroup, FormControl } from 'react-bootstrap';
+import { Card, Button, InputGroup, FormControl, Row, Col } from 'react-bootstrap';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 
 // Component to display shortened URL result

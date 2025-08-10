@@ -31,12 +31,12 @@ function Admin() {
   }, []);
   
   return (
-    <div>
+    <div className="admin-dashboard">
       <h2 className="mb-4">Admin Dashboard</h2>
       
       {/* Stats Cards */}
       <Row className="mb-4">
-        <Col md={3} sm={6} className="mb-3">
+        <Col lg={3} md={6} sm={6} xs={6} className="mb-3">
           <Card className="stats-card stats-card-primary h-100">
             <Card.Body>
               <div className="stats-number">{stats.totalUrls}</div>
@@ -45,7 +45,7 @@ function Admin() {
           </Card>
         </Col>
         
-        <Col md={3} sm={6} className="mb-3">
+        <Col lg={3} md={6} sm={6} xs={6} className="mb-3">
           <Card className="stats-card stats-card-success h-100">
             <Card.Body>
               <div className="stats-number">{stats.totalClicks}</div>
@@ -54,7 +54,7 @@ function Admin() {
           </Card>
         </Col>
         
-        <Col md={3} sm={6} className="mb-3">
+        <Col lg={3} md={6} sm={6} xs={6} className="mb-3">
           <Card className="stats-card stats-card-warning h-100">
             <Card.Body>
               <div className="stats-number">{stats.recentUrls}</div>
