@@ -13,7 +13,7 @@
 .url-form, .url-result {
   background: #f9f9f9;
   padding: 2rem;
-  border-radius: 10px;
+  border-radius: 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
 }
@@ -33,6 +33,8 @@
 .url-form .form-control {
   height: 50px;
   font-size: 1.1rem;
+  border-radius: 0;
+  border: 2px solid #ddd;
 }
 
 .url-form .btn {
@@ -41,6 +43,12 @@
   font-size: 1.1rem;
   font-weight: 600;
   margin-top: 1rem;
+  border-radius: 0;
+}
+
+/* Override Bootstrap's default rounded button styles */
+.btn {
+  border-radius: 0 !important;
 }
 
 /* Make text in cards and tables truncate with ellipsis */
@@ -55,7 +63,7 @@
 .url-result .card {
   border: none;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   margin-bottom: 1.5rem;
   overflow: hidden;

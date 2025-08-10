@@ -35,7 +35,7 @@ function UrlResult({ result }) {
               value={result.shortUrl}
               readOnly
               aria-label="Shortened URL"
-              className="rounded-start"
+              className="rounded-0"
             />
             <CopyToClipboard text={result.shortUrl} onCopy={handleCopy}>
               <Button variant="outline-primary">
@@ -48,7 +48,7 @@ function UrlResult({ result }) {
             <Button 
               variant="success" 
               onClick={() => window.open(result.shortUrl, '_blank')}
-              className="rounded-pill"
+              className="rounded-0"
             >
               <i className="bi bi-box-arrow-up-right me-2"></i>
               Open URL

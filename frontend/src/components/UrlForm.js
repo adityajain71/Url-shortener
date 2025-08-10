@@ -87,7 +87,7 @@ function UrlForm({ onShortenSuccess }) {
             value={url}
             onChange={handleChange}
             isInvalid={!isValidUrl && url.length > 0}
-            className="rounded-pill"
+            className="rounded-0"
           />
           {!isValidUrl && url.length > 0 && (
             <Form.Control.Feedback type="invalid">
@@ -100,7 +100,7 @@ function UrlForm({ onShortenSuccess }) {
           variant="primary" 
           type="submit" 
           disabled={isLoading || (url.length > 0 && !isValidUrl)}
-          className="rounded-pill"
+          className="rounded-0"
         >
           {isLoading ? (
             <>
