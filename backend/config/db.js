@@ -47,7 +47,7 @@ const connectDB = async (retryCount = 5) => {
       
       // Use our MongoDB Atlas connection string
       // NOTE: In a real production environment, you should store this in an environment variable
-      mongoURI = 'mongodb+srv://adityapradipjain2005:<db_password>@cluster0.gsaet3.mongodb.net/url-shortener?retryWrites=true&w=majority&appName=Cluster0';
+      mongoURI = 'mongodb+srv://adityapradipjain2005:<db_password>@cluster0.4ry2tb8.mongodb.net/url-shortener?retryWrites=true&w=majority&appName=Cluster0';
       
       console.log('Using fallback MongoDB Atlas connection');
     } else {
