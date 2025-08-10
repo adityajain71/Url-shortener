@@ -1,0 +1,29 @@
+{
+  "name": "url-shortener",
+  "version": "1.0.0",
+  "description": "URL Shortener MERN Stack Application",
+  "main": "index.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "server": "cd backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend"
+  },
+  "keywords": [
+    "url",
+    "shortener",
+    "mern",
+    "react",
+    "node",
+    "express",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "concurrently": "^8.0.1"
+  }
+}

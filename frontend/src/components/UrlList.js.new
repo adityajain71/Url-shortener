@@ -1,0 +1,555 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Table, Button, Form, InputGroup, Spinner, Alert, Card, 
+  Modal, Pagination, Badge
+} from 'react-bootstrap';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
+import axios from 'axios';
+
+// Component to display all URLs in admin view with CRUD functionality
+function UrlList({ refreshStats }) {
+  // State variables
+  const [urls, setUrls] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [search, setSearch] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    shortCode: '',
+    originalUrl: ''
+  });
+  
+  // Success and error messages
+  const [successMessage, setSuccessMessage] = useState('');
+  const [actionError, setActionError] = useState('');
+
+  // Fetch all URLs from the API
+  const fetchUrls = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/urls');
+      setUrls(response.data);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to load URLs. Please try again later.');
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUrls();
+  }, []);
+
+  // Handle copy action
+  const handleCopy = (id) => {
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 3000); // Reset copied state after 3 seconds
+  };
+
+  // Sort URLs based on the selected field and direction
+  const sortedUrls = [...urls]
+    .filter(url => {
+      if (!search) return true;
+      return (
+        url.originalUrl.toLowerCase().includes(search.toLowerCase()) ||
+        url.shortCode.toLowerCase().includes(search.toLowerCase())
+      );
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortField) {
+        case 'createdAt':
+          comparison = new Date(a.createdAt) - new Date(b.createdAt);
+          break;
+        case 'clicks':
+          comparison = a.clicks - b.clicks;
+          break;
+        case 'originalUrl':
+          comparison = a.originalUrl.localeCompare(b.originalUrl);
+          break;
+        case 'shortCode':
+          comparison = a.shortCode.localeCompare(b.shortCode);
+          break;
+        default:
+          comparison = 0;
+      }
+
+      return sortDirection === 'desc' ? -comparison : comparison;
+    });
+
+  // Handle sort change
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+  
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentUrls = sortedUrls.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedUrls.length / itemsPerPage);
+  
+  // Handle pagination
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Delete URL
+  const handleDelete = async () => {
+    try {
+      await axios.delete(`/api/urls/${currentUrl.id}`);
+      setShowDeleteModal(false);
+      setSuccessMessage(`URL with code "${currentUrl.shortCode}" has been deleted successfully.`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await fetchUrls();
+      if (refreshStats) refreshStats();
+    } catch (err) {
+      setActionError('Failed to delete URL. Please try again later.');
+      setTimeout(() => setActionError(''), 5000);
+    }
+  };
+
+  // Edit URL
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`/api/urls/${currentUrl.id}`, editFormData);
+      setShowEditModal(false);
+      setSuccessMessage(`URL with code "${currentUrl.shortCode}" has been updated successfully.`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+      await fetchUrls();
+      if (refreshStats) refreshStats();
+    } catch (err) {
+      setActionError('Failed to update URL. Please try again later.');
+      setTimeout(() => setActionError(''), 5000);
+    }
+  };
+
+  // View URL details
+  const handleView = (url) => {
+    setCurrentUrl(url);
+    setShowViewModal(true);
+  };
+
+  // Open Edit Modal
+  const handleEdit = (url) => {
+    setCurrentUrl(url);
+    setEditFormData({
+      shortCode: url.shortCode,
+      originalUrl: url.originalUrl
+    });
+    setShowEditModal(true);
+  };
+
+  // Open Delete Modal
+  const handleShowDeleteModal = (url) => {
+    setCurrentUrl(url);
+    setShowDeleteModal(true);
+  };
+
+  // Sort indicator arrow
+  const getSortArrow = (field) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? '↑' : '↓';
+  };
+
+  // Create pagination items
+  const paginationItems = [];
+  for (let number = 1; number <= totalPages; number++) {
+    paginationItems.push(
+      <Pagination.Item 
+        key={number} 
+        active={number === currentPage}
+        onClick={() => paginate(number)}
+      >
+        {number}
+      </Pagination.Item>
+    );
+  }
+  
+  // Render loading state
+  if (loading && urls.length === 0) {
+    return (
+      <div className="text-center my-5">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3">Loading URLs...</p>
+      </div>
+    );
+  }
+
+  // Render error state
+  if (error && urls.length === 0) {
+    return <Alert variant="danger">{error}</Alert>;
+  }
+
+  // Render empty state
+  if (urls.length === 0) {
+    return (
+      <Card>
+        <Card.Body className="text-center">
+          <Card.Title>No URLs Found</Card.Title>
+          <Card.Text>
+            No URLs have been shortened yet. Create your first short URL on the home page.
+          </Card.Text>
+        </Card.Body>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="table-container animated">
+      {successMessage && (
+        <Alert variant="success" className="mb-4 alert-styled">
+          <i className="bi bi-check-circle-fill me-2"></i>
+          {successMessage}
+        </Alert>
+      )}
+      
+      {actionError && (
+        <Alert variant="danger" className="mb-4 alert-styled">
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          {actionError}
+        </Alert>
+      )}
+      
+      <div className="table-header">
+        <h3>
+          All URLs 
+          <Badge bg="primary" pill className="ms-2 badge-stats">
+            {urls.length}
+          </Badge>
+        </h3>
+        <InputGroup className="w-50">
+          <InputGroup.Text>
+            <i className="bi bi-search"></i>
+          </InputGroup.Text>
+          <Form.Control
+            placeholder="Search URLs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <Button 
+              variant="outline-secondary" 
+              onClick={() => setSearch('')}
+            >
+              <i className="bi bi-x-lg"></i>
+            </Button>
+          )}
+        </InputGroup>
+      </div>
+
+      <Table responsive hover>
+        <thead>
+          <tr>
+            <th 
+              className="clickable" 
+              onClick={() => handleSort('shortCode')}
+            >
+              Short Code {getSortArrow('shortCode')}
+            </th>
+            <th 
+              className="clickable" 
+              onClick={() => handleSort('originalUrl')}
+            >
+              Original URL {getSortArrow('originalUrl')}
+            </th>
+            <th 
+              className="clickable" 
+              onClick={() => handleSort('clicks')}
+            >
+              Clicks {getSortArrow('clicks')}
+            </th>
+            <th 
+              className="clickable" 
+              onClick={() => handleSort('createdAt')}
+            >
+              Created At {getSortArrow('createdAt')}
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentUrls.map((url) => (
+            <tr key={url.id}>
+              <td>
+                <Badge bg="light" text="dark" className="border">
+                  {url.shortCode}
+                </Badge>
+              </td>
+              <td>
+                <div className="truncate" title={url.originalUrl}>
+                  {url.originalUrl}
+                </div>
+              </td>
+              <td>
+                <Badge bg={url.clicks > 10 ? "success" : "secondary"} pill>
+                  {url.clicks}
+                </Badge>
+              </td>
+              <td>{new Date(url.createdAt).toLocaleString()}</td>
+              <td>
+                <div className="action-buttons">
+                  <Button 
+                    size="sm" 
+                    variant="outline-primary"
+                    title="View Details"
+                    onClick={() => handleView(url)}
+                  >
+                    <i className="bi bi-eye"></i>
+                  </Button>
+                  
+                  <CopyToClipboard 
+                    text={url.shortUrl} 
+                    onCopy={() => handleCopy(url.id)}
+                  >
+                    <Button 
+                      size="sm" 
+                      variant="outline-success"
+                      title="Copy URL"
+                    >
+                      {copiedId === url.id ? (
+                        <i className="bi bi-check-lg"></i>
+                      ) : (
+                        <i className="bi bi-clipboard"></i>
+                      )}
+                    </Button>
+                  </CopyToClipboard>
+                  
+                  <Button 
+                    size="sm" 
+                    variant="outline-warning"
+                    title="Edit URL"
+                    onClick={() => handleEdit(url)}
+                  >
+                    <i className="bi bi-pencil"></i>
+                  </Button>
+                  
+                  <Button 
+                    size="sm" 
+                    variant="outline-danger"
+                    title="Delete URL"
+                    onClick={() => handleShowDeleteModal(url)}
+                  >
+                    <i className="bi bi-trash"></i>
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="d-flex justify-content-center mt-4">
+          <Pagination>
+            <Pagination.First 
+              onClick={() => paginate(1)} 
+              disabled={currentPage === 1}
+            />
+            <Pagination.Prev 
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+            />
+            
+            {currentPage > 2 && <Pagination.Ellipsis disabled />}
+            
+            {currentPage > 1 && (
+              <Pagination.Item onClick={() => paginate(currentPage - 1)}>
+                {currentPage - 1}
+              </Pagination.Item>
+            )}
+            
+            <Pagination.Item active>{currentPage}</Pagination.Item>
+            
+            {currentPage < totalPages && (
+              <Pagination.Item onClick={() => paginate(currentPage + 1)}>
+                {currentPage + 1}
+              </Pagination.Item>
+            )}
+            
+            {currentPage < totalPages - 1 && <Pagination.Ellipsis disabled />}
+            
+            <Pagination.Next 
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            />
+            <Pagination.Last 
+              onClick={() => paginate(totalPages)}
+              disabled={currentPage === totalPages}
+            />
+          </Pagination>
+        </div>
+      )}
+      
+      {/* View Modal */}
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>URL Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {currentUrl && (
+            <div>
+              <div className="url-info">
+                <h6>Short URL</h6>
+                <InputGroup className="mb-3">
+                  <Form.Control
+                    value={currentUrl.shortUrl}
+                    readOnly
+                  />
+                  <CopyToClipboard 
+                    text={currentUrl.shortUrl} 
+                    onCopy={() => handleCopy(currentUrl.id)}
+                  >
+                    <Button variant="outline-primary">
+                      {copiedId === currentUrl.id ? 'Copied!' : 'Copy'}
+                    </Button>
+                  </CopyToClipboard>
+                </InputGroup>
+              </div>
+              
+              <div className="url-info">
+                <h6>Original URL</h6>
+                <p className="text-break">{currentUrl.originalUrl}</p>
+              </div>
+              
+              <div className="url-info">
+                <h6>Short Code</h6>
+                <p><Badge bg="light" text="dark" className="border">{currentUrl.shortCode}</Badge></p>
+              </div>
+              
+              <div className="url-info">
+                <h6>Analytics</h6>
+                <p>
+                  <strong>Clicks:</strong> <Badge bg="success" pill>{currentUrl.clicks}</Badge>
+                </p>
+                <p>
+                  <strong>Created:</strong> {new Date(currentUrl.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => setShowViewModal(false)}
+          >
+            Close
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={() => {
+              window.open(currentUrl?.shortUrl, '_blank');
+            }}
+          >
+            Open URL
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
+      {/* Edit Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit URL</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleEditSubmit}>
+          <Modal.Body>
+            {currentUrl && (
+              <div>
+                <Form.Group className="mb-3">
+                  <Form.Label>Short Code</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.shortCode}
+                    onChange={(e) => setEditFormData({
+                      ...editFormData,
+                      shortCode: e.target.value
+                    })}
+                    required
+                  />
+                  <Form.Text className="text-muted">
+                    Changing the short code will break existing links
+                  </Form.Text>
+                </Form.Group>
+                
+                <Form.Group className="mb-3">
+                  <Form.Label>Original URL</Form.Label>
+                  <Form.Control
+                    type="url"
+                    value={editFormData.originalUrl}
+                    onChange={(e) => setEditFormData({
+                      ...editFormData,
+                      originalUrl: e.target.value
+                    })}
+                    required
+                  />
+                </Form.Group>
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowEditModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              type="submit"
+            >
+              Save Changes
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+      
+      {/* Delete Modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete the URL with short code <strong>{currentUrl?.shortCode}</strong>?
+          <p className="text-danger mt-2 mb-0">
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            This action cannot be undone.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => setShowDeleteModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="danger" 
+            onClick={handleDelete}
+          >
+            Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
+  );
+}
+
+export default UrlList;
