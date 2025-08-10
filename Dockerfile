@@ -4,6 +4,9 @@ FROM node:18-alpine as base
 # Set working directory
 WORKDIR /app
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Copy package.json files
 COPY package*.json ./
 COPY backend/package*.json ./backend/
@@ -21,5 +24,12 @@ RUN npm run build
 # Expose the port the app runs on
 EXPOSE 5000
 
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:$PORT/ || exit 1
+
+# Make the startup script executable
+RUN chmod +x ./start-railway.sh
+
 # Command to run the app
-CMD ["npm", "start"]
+CMD ["./start-railway.sh"]

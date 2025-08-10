@@ -27,6 +27,14 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api', require('./routes/url'));
 
 /**
+ * @route   GET /api/health
+ * @desc    Health check endpoint
+ */
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+/**
  * @route   GET /:shortcode
  * @desc    Redirect to the original URL
  */
@@ -67,4 +75,30 @@ if (process.env.NODE_ENV === 'production') {
 
 // Set port and start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Add proper error handling for the server
+const server = app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Configured' : 'Not Configured'}`);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Promise Rejection:', err);
+  // Don't crash the server, just log the error
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Give the server a grace period to finish current requests
+  server.close(() => {
+    process.exit(1);
+  });
+  
+  // If server doesn't close in 10 seconds, force exit
+  setTimeout(() => {
+    process.exit(1);
+  }, 10000);
+});
