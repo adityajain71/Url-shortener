@@ -1,8 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const validUrl = require('valid-url');
+const mongoose = require('mongoose');
 const Url = require('../models/url');
 const { generateShortCode } = require('../utils/codeGenerator');
+
+// Wrap database operations with timeout and error handling
+const withTimeout = (promise, timeoutMs = 5000) => {
+  let timeoutHandle;
+  
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([
+    promise,
+    timeoutPromise
+  ]).then(result => {
+    clearTimeout(timeoutHandle);
+    return result;
+  }).catch(err => {
+    clearTimeout(timeoutHandle);
+    throw err;
+  });
+};
 
 /**
  * @route   POST /api/shorten
@@ -11,11 +34,11 @@ const { generateShortCode } = require('../utils/codeGenerator');
 router.post('/shorten', async (req, res) => {
   // Get the original URL from request body
   const { originalUrl } = req.body;
-  const baseUrl = process.env.BASE_URL;
   
-  // Check if base URL is valid
-  if (!validUrl.isUri(baseUrl)) {
-    return res.status(401).json({ error: 'Invalid base URL' });
+  // Get base URL from env or construct from request
+  let baseUrl = process.env.BASE_URL;
+  if (!baseUrl || !validUrl.isUri(baseUrl)) {
+    baseUrl = `${req.protocol}://${req.get('host')}`;
   }
 
   // Check if original URL is valid
@@ -24,8 +47,31 @@ router.post('/shorten', async (req, res) => {
   }
 
   try {
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB is not connected. Will create URL without persistence.');
+      
+      // Create a non-persistent short URL (will not be saved to DB)
+      const shortCode = generateShortCode();
+      
+      return res.json({
+        success: true,
+        shortUrl: `${baseUrl}/${shortCode}`,
+        shortCode,
+        originalUrl,
+        temporary: true,
+        warning: "Database connection unavailable. This URL will not be permanently stored."
+      });
+    }
+
     // Check if the URL already exists in the database
-    let url = await Url.findOne({ original_url: originalUrl });
+    let url = await withTimeout(
+      Url.findOne({ original_url: originalUrl }),
+      10000
+    ).catch(err => {
+      console.error('Error finding URL:', err);
+      return null;
+    });
 
     if (url) {
       // Return the existing shortened URL
@@ -48,8 +94,11 @@ router.post('/shorten', async (req, res) => {
       short_code: shortCode,
     });
 
-    // Save to database
-    await url.save();
+    // Save to database with timeout
+    await withTimeout(url.save(), 10000).catch(err => {
+      console.error('Error saving URL:', err);
+      throw new Error('Failed to save URL');
+    });
     
     // Return the shortened URL and details
     res.json({
@@ -73,13 +122,34 @@ router.post('/shorten', async (req, res) => {
  */
 router.get('/urls', async (req, res) => {
   try {
-    const urls = await Url.find().sort({ created_at: -1 });
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        error: 'Database service temporarily unavailable',
+        message: 'Our service is experiencing connectivity issues. Please try again later.'
+      });
+    }
+
+    // Find URLs with timeout
+    const urls = await withTimeout(
+      Url.find().sort({ created_at: -1 }),
+      10000
+    ).catch(err => {
+      console.error('Error finding URLs:', err);
+      return [];
+    });
+    
+    // Get base URL from env or construct default
+    let baseUrl = process.env.BASE_URL;
+    if (!baseUrl || !validUrl.isUri(baseUrl)) {
+      baseUrl = `${req.protocol}://${req.get('host')}`;
+    }
     
     // Transform the data for frontend
     const formattedUrls = urls.map(url => ({
       id: url._id,
       shortCode: url.short_code,
-      shortUrl: `${process.env.BASE_URL}/${url.short_code}`,
+      shortUrl: `${baseUrl}/${url.short_code}`,
       originalUrl: url.original_url,
       clicks: url.clicks,
       createdAt: url.created_at
@@ -98,16 +168,42 @@ router.get('/urls', async (req, res) => {
  */
 router.get('/url/:id', async (req, res) => {
   try {
-    const url = await Url.findById(req.params.id);
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        error: 'Database service temporarily unavailable',
+        message: 'Our service is experiencing connectivity issues. Please try again later.'
+      });
+    }
+
+    // Add error handling for invalid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid URL ID format' });
+    }
+
+    // Find URL with timeout
+    const url = await withTimeout(
+      Url.findById(req.params.id),
+      5000
+    ).catch(err => {
+      console.error('Error finding URL by ID:', err);
+      return null;
+    });
     
     if (!url) {
       return res.status(404).json({ error: 'URL not found' });
     }
     
+    // Get base URL from env or construct default
+    let baseUrl = process.env.BASE_URL;
+    if (!baseUrl || !validUrl.isUri(baseUrl)) {
+      baseUrl = `${req.protocol}://${req.get('host')}`;
+    }
+    
     res.json({
       id: url._id,
       shortCode: url.short_code,
-      shortUrl: `${process.env.BASE_URL}/${url.short_code}`,
+      shortUrl: `${baseUrl}/${url.short_code}`,
       originalUrl: url.original_url,
       clicks: url.clicks,
       createdAt: url.created_at
@@ -131,7 +227,27 @@ router.put('/url/:id', async (req, res) => {
   }
   
   try {
-    const url = await Url.findById(req.params.id);
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        error: 'Database service temporarily unavailable',
+        message: 'Our service is experiencing connectivity issues. Please try again later.'
+      });
+    }
+
+    // Add error handling for invalid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid URL ID format' });
+    }
+    
+    // Find URL with timeout
+    const url = await withTimeout(
+      Url.findById(req.params.id),
+      5000
+    ).catch(err => {
+      console.error('Error finding URL by ID:', err);
+      return null;
+    });
     
     if (!url) {
       return res.status(404).json({ error: 'URL not found' });
@@ -140,14 +256,23 @@ router.put('/url/:id', async (req, res) => {
     // Update fields
     url.original_url = originalUrl;
     
-    // Save to database
-    await url.save();
+    // Save to database with timeout
+    await withTimeout(url.save(), 5000).catch(err => {
+      console.error('Error saving URL update:', err);
+      throw new Error('Failed to save URL update');
+    });
+    
+    // Get base URL from env or construct default
+    let baseUrl = process.env.BASE_URL;
+    if (!baseUrl || !validUrl.isUri(baseUrl)) {
+      baseUrl = `${req.protocol}://${req.get('host')}`;
+    }
     
     res.json({
       success: true,
       id: url._id,
       shortCode: url.short_code,
-      shortUrl: `${process.env.BASE_URL}/${url.short_code}`,
+      shortUrl: `${baseUrl}/${url.short_code}`,
       originalUrl: url.original_url,
       clicks: url.clicks,
       createdAt: url.created_at
@@ -164,13 +289,40 @@ router.put('/url/:id', async (req, res) => {
  */
 router.delete('/url/:id', async (req, res) => {
   try {
-    const url = await Url.findById(req.params.id);
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        error: 'Database service temporarily unavailable',
+        message: 'Our service is experiencing connectivity issues. Please try again later.'
+      });
+    }
+
+    // Add error handling for invalid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid URL ID format' });
+    }
+    
+    // Find URL with timeout
+    const url = await withTimeout(
+      Url.findById(req.params.id),
+      5000
+    ).catch(err => {
+      console.error('Error finding URL by ID:', err);
+      return null;
+    });
     
     if (!url) {
       return res.status(404).json({ error: 'URL not found' });
     }
     
-    await Url.deleteOne({ _id: req.params.id });
+    // Delete with timeout
+    await withTimeout(
+      Url.deleteOne({ _id: req.params.id }),
+      5000
+    ).catch(err => {
+      console.error('Error deleting URL:', err);
+      throw new Error('Failed to delete URL');
+    });
     
     res.json({ success: true, message: 'URL deleted successfully' });
   } catch (err) {
@@ -185,7 +337,22 @@ router.delete('/url/:id', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    const urls = await Url.find();
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        error: 'Database service temporarily unavailable',
+        message: 'Our service is experiencing connectivity issues. Please try again later.'
+      });
+    }
+
+    // Find URLs with timeout
+    const urls = await withTimeout(
+      Url.find(),
+      10000
+    ).catch(err => {
+      console.error('Error finding URLs for stats:', err);
+      return [];
+    });
     
     // Calculate stats
     const totalUrls = urls.length;
@@ -201,18 +368,25 @@ router.get('/stats', async (req, res) => {
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
     const recentUrls = urls.filter(url => url.created_at > oneDayAgo).length;
     
+    // Get base URL from env or construct default
+    let baseUrl = process.env.BASE_URL;
+    if (!baseUrl || !validUrl.isUri(baseUrl)) {
+      baseUrl = `${req.protocol}://${req.get('host')}`;
+    }
+    
     res.json({
       totalUrls,
       totalClicks,
       mostClickedUrl: mostClickedUrl ? {
         id: mostClickedUrl._id,
         shortCode: mostClickedUrl.short_code,
-        shortUrl: `${process.env.BASE_URL}/${mostClickedUrl.short_code}`,
+        shortUrl: `${baseUrl}/${mostClickedUrl.short_code}`,
         originalUrl: mostClickedUrl.original_url,
         clicks: mostClickedUrl.clicks,
         createdAt: mostClickedUrl.created_at
       } : null,
-      recentUrls
+      recentUrls,
+      dbStatus: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
     });
   } catch (err) {
     console.error('Server error:', err);

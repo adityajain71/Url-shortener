@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const connectDB = require('./config/db');
 const Url = require('./models/url');
 
 // Load environment variables
@@ -15,77 +16,21 @@ const app = express();
 app.use(express.json()); // Parse JSON request body
 app.use(cors()); // Enable CORS for all routes
 
-// Connect to MongoDB
-// Force explicit MongoDB URI from environment variable to prevent fallbacks
-let mongoURI = process.env.MONGODB_URI;
-if (!mongoURI) {
-  console.error('ERROR: MONGODB_URI environment variable is not set.');
-  mongoURI = process.env.MONGO_URL;
-  if (mongoURI) {
-    console.log('Using MONGO_URL environment variable as fallback.');
+// Connect to MongoDB using the connection module
+console.log('Initializing MongoDB connection...');
+connectDB().then(connected => {
+  if (connected) {
+    console.log('MongoDB connected successfully and ready for operations');
   } else {
-    console.error('ERROR: Neither MONGODB_URI nor MONGO_URL environment variables are set.');
-    console.log('For local development only, falling back to localhost MongoDB.');
-    mongoURI = 'mongodb://localhost:27017/url-shortener';
+    console.warn('Running without MongoDB connection. Some features may not work.');
   }
-}
-
-console.log(`MongoDB Connection Info:`);
-console.log(`- Using URI pattern: ${mongoURI ? mongoURI.replace(/\/\/.*@/, '//***:***@').slice(0, 20) + '...' : 'Not set'}`); 
-console.log(`- Environment: ${process.env.NODE_ENV || 'Not set'}`);
-
-const mongooseOptions = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-  socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-};
-
-console.log('Attempting to connect to MongoDB...');
-mongoose.connect(mongoURI, mongooseOptions)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    console.error('Connection details (masked):', {
-      uri_pattern: mongoURI ? mongoURI.replace(/\/\/.*@/, '//***:***@').slice(0, 20) + '...' : 'Not set',
-      env: process.env.NODE_ENV,
-      mongodb_uri_set: !!process.env.MONGODB_URI,
-      mongo_url_set: !!process.env.MONGO_URL
-    });
-    
-    // Don't exit immediately in production, as Railway might restart the container
-    if (process.env.NODE_ENV !== 'production') {
-      process.exit(1);
-    }
-  });
+});
 
 // API routes
 app.use('/api', require('./routes/url'));
 
-/**
- * @route   GET /api/health
- * @desc    Health check endpoint
- */
-app.get('/api/health', (req, res) => {
-  // Check MongoDB connection state
-  const mongooseState = mongoose.connection.readyState;
-  // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
-  const dbStatus = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'][mongooseState];
-  
-  // For Railway health checks, we'll consider the app healthy even if MongoDB is not connected
-  // This prevents Railway from constantly restarting the container
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    database: {
-      state: mongooseState,
-      status: dbStatus,
-      // Don't show the actual connection string for security
-      connectionString: process.env.MONGODB_URI ? 'Set' : 'Not set'
-    },
-    environment: process.env.NODE_ENV || 'Not set'
-  });
-});
+// System and health check routes
+app.use('/api', require('./routes/system'));
 
 /**
  * @route   GET /:shortcode
@@ -95,17 +40,46 @@ app.get('/:shortCode', async (req, res) => {
   try {
     const { shortCode } = req.params;
     
-    // Find the URL in the database
-    const url = await Url.findOne({ short_code: shortCode });
+    // Check if mongoose is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB connection unavailable when trying to redirect', shortCode);
+      return res.status(503).json({ 
+        error: 'Service temporarily unavailable',
+        message: 'Our database service is currently unavailable. Please try again later.'
+      });
+    }
+    
+    // Find the URL in the database with timeout
+    const url = await new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Database lookup timed out'));
+      }, 5000);
+      
+      Url.findOne({ short_code: shortCode })
+        .then(result => {
+          clearTimeout(timeoutId);
+          resolve(result);
+        })
+        .catch(err => {
+          clearTimeout(timeoutId);
+          reject(err);
+        });
+    }).catch(err => {
+      console.error('Error finding URL:', err);
+      return null;
+    });
     
     if (!url) {
       // If URL not found, redirect to the frontend (for handling 404s in UI)
       return res.status(404).json({ error: 'URL not found' });
     }
 
-    // Increment the click counter
+    // Increment the click counter but don't block the redirect
     url.clicks++;
-    await url.save();
+    url.save().catch(err => {
+      console.error('Error updating click count:', err);
+      // Don't halt execution on save error - just log it
+    });
     
     // Redirect to the original URL
     return res.redirect(url.original_url);
@@ -185,7 +159,7 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 5000;
 
 // Add proper error handling for the server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Configured' : 'Not Configured'}`);

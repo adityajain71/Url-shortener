@@ -1,0 +1,17 @@
+services:
+  # A web service for the URL Shortener application
+  - type: web
+    name: url-shortener
+    env: node
+    buildCommand: npm install && cd frontend && npm install && npm run build && cd ..
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true
+    plan: free

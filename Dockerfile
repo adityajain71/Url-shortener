@@ -37,5 +37,8 @@ ENV NODE_ENV=production
 ENV PORT=5000
 ENV REACT_APP_API_URL=/api
 
+# Make the backend directory writable for logs
+RUN mkdir -p /app/backend/logs && chmod -R 777 /app/backend
+
 # Command to run the app
 CMD ["./start-railway.sh"]
