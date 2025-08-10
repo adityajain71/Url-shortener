@@ -116,6 +116,16 @@ const connectDB = async (retryCount = 5) => {
   } catch (err) {
     console.error('MongoDB connection error:', err);
     
+    // Check for specific error types and provide more helpful messages
+    if (err.name === 'MongooseServerSelectionError') {
+      console.error('=== CONNECTION TROUBLESHOOTING GUIDE ===');
+      console.error('1. Check if your MongoDB Atlas IP whitelist includes 0.0.0.0/0 to allow all IPs');
+      console.error('2. Verify username and password are correct in the connection string');
+      console.error('3. Ensure the cluster name and database name are correct');
+      console.error('4. Check if your MongoDB Atlas cluster is running and accessible');
+      console.error('=== END TROUBLESHOOTING GUIDE ===');
+    }
+    
     // If we have retries left, try again after a delay
     if (retryCount > 0) {
       console.log(`Retrying connection in 5 seconds... (${retryCount} attempts remaining)`);
