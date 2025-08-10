@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Button, InputGroup, FormControl, Row, Col } from 'react-bootstrap';
+import { Card, Button, InputGroup, FormControl, Alert } from 'react-bootstrap';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 
 // Component to display shortened URL result
@@ -18,7 +18,7 @@ function UrlResult({ result }) {
     <div className="url-result">
       <h3>Your Shortened URL</h3>
       
-      <Card className="mb-3">
+      <Card className="mb-4">
         <Card.Body>
           <Card.Title>Original URL</Card.Title>
           <Card.Text className="text-muted truncate">
@@ -35,6 +35,7 @@ function UrlResult({ result }) {
               value={result.shortUrl}
               readOnly
               aria-label="Shortened URL"
+              className="rounded-start"
             />
             <CopyToClipboard text={result.shortUrl} onCopy={handleCopy}>
               <Button variant="outline-primary">
@@ -47,12 +48,23 @@ function UrlResult({ result }) {
             <Button 
               variant="success" 
               onClick={() => window.open(result.shortUrl, '_blank')}
+              className="rounded-pill"
             >
+              <i className="bi bi-box-arrow-up-right me-2"></i>
               Open URL
             </Button>
           </div>
+          
+          {result.temporary && (
+            <Alert variant="warning" className="mt-3 mb-0">
+              <small>
+                <strong>Note:</strong> This URL was created without database persistence due to connection issues.
+                It may not work after server restart.
+              </small>
+            </Alert>
+          )}
         </Card.Body>
-        <Card.Footer className="text-muted">
+        <Card.Footer className="text-muted text-center">
           Created: {new Date(result.createdAt).toLocaleString()}
         </Card.Footer>
       </Card>

@@ -13,11 +13,17 @@ function Home() {
   };
 
   return (
-    <Container>
+    <Container className="py-5">
+      <Row className="justify-content-center mb-4">
+        <Col xs={12} className="text-center">
+          <h1 className="display-4 mb-3">URL Shortener</h1>
+          <p className="lead text-muted">Make your long URLs short and easy to share</p>
+        </Col>
+      </Row>
       <Row className="justify-content-center">
-        <Col xs={12} md={8} lg={6}>
+        <Col xs={12} md={10} lg={8} xl={6}>
           <UrlForm onShortenSuccess={handleShortenSuccess} />
-          <UrlResult result={urlResult} />
+          {urlResult && <UrlResult result={urlResult} />}
         </Col>
       </Row>
     </Container>
