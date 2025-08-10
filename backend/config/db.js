@@ -17,6 +17,22 @@ const connectDB = async (retryCount = 5) => {
     if (process.env[envVar]) {
       mongoURI = process.env[envVar];
       console.log(`Using ${envVar} for MongoDB connection`);
+      
+      // Validate that the URI starts with mongodb:// or mongodb+srv://
+      if (!mongoURI.startsWith('mongodb://') && !mongoURI.startsWith('mongodb+srv://')) {
+        console.error(`ERROR: Invalid MongoDB URI in ${envVar}. URI must start with mongodb:// or mongodb+srv://`);
+        console.error(`Current value starts with: ${mongoURI.substring(0, 15)}...`);
+        // Try to fix common issues like missing 'm' at the beginning
+        if (mongoURI.startsWith('ongodb://') || mongoURI.startsWith('ongodb+srv://')) {
+          mongoURI = 'm' + mongoURI;
+          console.log(`Attempting to fix URI by adding missing 'm' character.`);
+        } else {
+          // Don't use an invalid URI
+          mongoURI = null;
+          continue;
+        }
+      }
+      
       break;
     }
   }
