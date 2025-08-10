@@ -32,5 +32,10 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 # Make the startup script executable
 RUN chmod +x ./start-railway.sh
 
+# Set default environment variables - will be overridden by Railway
+ENV NODE_ENV=production
+ENV PORT=5000
+ENV REACT_APP_API_URL=/api
+
 # Command to run the app
 CMD ["./start-railway.sh"]
