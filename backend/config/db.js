@@ -21,11 +21,24 @@ const connectDB = async (retryCount = 5) => {
     }
   }
 
-  // If no environment variable is found, use localhost as a fallback (only for development)
+  // If no environment variable is found, handle differently based on environment
   if (!mongoURI) {
     console.error('WARNING: No MongoDB connection string found in environment variables!');
-    console.log('For local development only, falling back to localhost MongoDB.');
-    mongoURI = 'mongodb://localhost:27017/url-shortener';
+    
+    if (process.env.NODE_ENV === 'production') {
+      // In production, use our MongoDB Atlas connection string as a fallback
+      console.warn('MONGODB_URI not found in environment. Using hardcoded MongoDB Atlas connection.');
+      
+      // Use our MongoDB Atlas connection string
+      // NOTE: In a real production environment, you should store this in an environment variable
+      mongoURI = 'mongodb+srv://adityapradipjain2005:<db_password>@cluster0.gsaet3.mongodb.net/url-shortener?retryWrites=true&w=majority&appName=Cluster0';
+      
+      console.log('Using fallback MongoDB Atlas connection');
+    } else {
+      // For development, use localhost
+      console.log('For local development only, falling back to localhost MongoDB.');
+      mongoURI = 'mongodb://localhost:27017/url-shortener';
+    }
   }
 
   // Log MongoDB connection info (without exposing sensitive information)
@@ -33,6 +46,20 @@ const connectDB = async (retryCount = 5) => {
   console.log(`- Using URI pattern: ${mongoURI ? mongoURI.replace(/\/\/.*@/, '//***:***@').slice(0, 20) + '...' : 'Not set'}`);
   console.log(`- Environment: ${process.env.NODE_ENV || 'Not set'}`);
   console.log(`- Attempt: ${6 - retryCount} of 5`);
+  
+  // Debug info for troubleshooting production deployments
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Environment variables check:');
+    for (const envVar of possibleEnvVars) {
+      console.log(`- ${envVar}: ${process.env[envVar] ? 'Set' : 'Not set'}`);
+    }
+    
+    // Check if this is a MongoDB Atlas URL
+    const isAtlasUrl = mongoURI && mongoURI.includes('mongodb+srv');
+    if (!isAtlasUrl && process.env.NODE_ENV === 'production') {
+      console.warn('Warning: Not using MongoDB Atlas in production environment!');
+    }
+  }
 
   try {
     // Configure mongoose options
